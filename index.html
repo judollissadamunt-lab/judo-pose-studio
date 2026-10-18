@@ -1,8 +1,8 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Judo Pose Studio · Prototipo</title><style>
 :root{font-family:Inter,system-ui,Arial,sans-serif;color:#e9edf6;background:#101827}*{box-sizing:border-box}body{margin:0}header{padding:14px 20px;background:#18243a;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #34425b}h1{font-size:19px;margin:0}header small{color:#b7c6dc}.layout{display:grid;grid-template-columns:315px 1fr;height:calc(100vh - 65px)}aside{overflow:auto;padding:17px;background:#18243a;border-right:1px solid #34425b}h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:#aec4e7;margin:19px 0 9px}label{display:block;font-size:12px;color:#c2cde0;margin:9px 0 4px}select,input,button{font:inherit}select,input[type=number],input[type=text]{width:100%;background:#101827;color:white;border:1px solid #43536c;border-radius:7px;padding:8px}input[type=range]{width:100%}.inline{display:flex;gap:7px}.inline>*{flex:1;min-width:0}button{border:1px solid #50617d;background:#293a58;color:#fff;border-radius:7px;padding:9px 10px;cursor:pointer}button:hover{background:#38527d}button.primary{background:#c73343;border-color:#c73343}button.active{outline:2px solid #91b8ff}.hint{font-size:12px;line-height:1.5;color:#aebcd1}main{position:relative;min-width:0}canvas{display:block;width:100%;height:100%}.floating{position:absolute;left:15px;bottom:15px;background:#18243add;border:1px solid #40516b;padding:10px 13px;border-radius:9px;font-size:12px;max-width:400px}.status{color:#a6d7ad}.num{display:inline-block;min-width:48px;text-align:right;color:#fff}#steps{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0}#steps button{padding:7px 10px}.badge{color:#f0bdc5} @media(max-width:780px){.layout{grid-template-columns:1fr;height:auto}aside{order:2;max-height:none}main{height:52vh;min-height:330px}header{gap:12px;align-items:start;flex-direction:column}}
-</style><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script></head><body><header><div><h1>🥋 JUDO POSE STUDIO</h1><small>Editor experimental de Tori y Uke · independiente de Base44</small></div><small>Versión 4.9 · codos estables</small></header><div class="layout"><aside>
+</style><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script></head><body><header><div><h1>🥋 JUDO POSE STUDIO</h1><small>Editor experimental de Tori y Uke · independiente de Base44</small></div><small>Versión 5.0 · muñecas articuladas</small></header><div class="layout"><aside>
 <h2>Judoka</h2><div class="inline"><button id="toriBtn" class="active">Tori · Blanco</button><button id="ukeBtn">Uke · Azul</button></div>
-<h2>Articulación</h2><p class="hint">Arrastra el cuerpo de un judoka para desplazarlo por el tatami. Haz clic en un <b>punto naranja</b> del judoka y arrastra horizontalmente o verticalmente para girar esa articulación. Mantén <b>Mayús</b> para girar en el eje horizontal.</p><select id="joint"><option value="head">Cabeza / cuello</option><option value="leftShoulder">Hombro izquierdo</option><option value="leftElbow">Codo izquierdo</option><option value="rightShoulder">Hombro derecho</option><option value="rightElbow">Codo derecho</option><option value="leftHip">Cadera izquierda</option><option value="leftKnee">Rodilla izquierda</option><option value="rightHip">Cadera derecha</option><option value="rightKnee">Rodilla derecha</option><option value="torso">Tronco</option></select>
+<h2>Articulación</h2><p class="hint">Arrastra el cuerpo de un judoka para desplazarlo por el tatami. Haz clic en un <b>punto naranja</b> del judoka y arrastra horizontalmente o verticalmente para girar esa articulación. Mantén <b>Mayús</b> para girar en el eje horizontal.</p><select id="joint"><option value="head">Cabeza / cuello</option><option value="leftShoulder">Hombro izquierdo</option><option value="leftElbow">Codo izquierdo</option><option value="leftWrist">Muñeca izquierda</option><option value="rightShoulder">Hombro derecho</option><option value="rightElbow">Codo derecho</option><option value="rightWrist">Muñeca derecha</option><option value="leftHip">Cadera izquierda</option><option value="leftKnee">Rodilla izquierda</option><option value="rightHip">Cadera derecha</option><option value="rightKnee">Rodilla derecha</option><option value="torso">Tronco</option></select>
 <label>Rotación adelante / atrás <span class="num" id="xVal">0°</span></label><input type="range" id="rotX" min="-150" max="150" value="0"><label>Rotación lateral <span class="num" id="zVal">0°</span></label><input type="range" id="rotZ" min="-150" max="150" value="0"><label>Giro horizontal <span class="num" id="yVal">0°</span></label><input type="range" id="rotY" min="-180" max="180" value="0">
 <h2>Kumi-kata · agarres</h2><div class="inline" style="margin-top:10px"><button id="classicGrip" class="primary">Posición inicial de Kumi-kata</button></div><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="showMarkers" checked style="width:auto">Mostrar puntos naranjas de articulación</label><p class="hint">Selecciona quién agarra, con qué mano y dónde sujeta el judogi rival. Los puntos y la línea muestran la conexión. Ajusta los brazos y acerca los judokas para colocar las manos correctamente.</p><label>Judoka que agarra</label><select id="gripWho"><option value="tori">Tori · Blanco</option><option value="uke">Uke · Azul</option></select><label>Mano</label><select id="gripHand"><option value="right">Derecha</option><option value="left">Izquierda</option></select><label>Zona del judogi rival</label><select id="gripTarget"><option value="lapel">Solapa</option><option value="sleeve">Manga</option></select><div class="inline" style="margin-top:9px"><button id="gripAdd" class="primary">Conectar agarre</button><button id="gripRemove">Soltar agarre</button></div><p id="gripStatus" class="hint" aria-live="polite"></p><h2>Posición del judoka</h2><label>Izquierda / derecha (X)</label><input id="posX" type="range" min="-3" max="3" step="0.05"><label>Adelante / atrás (Z)</label><input id="posZ" type="range" min="-3" max="3" step="0.05"><label>Orientación del cuerpo</label><input id="facing" type="range" min="-180" max="180" step="5"><div class="inline" style="margin-top:10px"><button id="resetPose">Restablecer postura</button><button id="resetAll">Reiniciar escena</button></div>
 <h2>Secuencia de O-soto-gari</h2><p class="hint">Coloca ambos judokas, ajusta sus articulaciones y guarda cada fase. Puedes recuperar una fase y continuar editándola.</p><input type="text" id="stepName" placeholder="Ej. 1 · Agarre" value="1 · Posición inicial"><div class="inline" style="margin-top:8px"><button id="saveStep" class="primary">Guardar fase</button><button id="deleteStep">Borrar fase</button></div><div class="inline" style="margin-top:7px"><button id="newStep">＋ Nueva fase</button></div><div id="steps"></div><div class="inline"><button id="prevStep">◀ Anterior</button><button id="nextStep">Siguiente ▶</button></div>
@@ -47,7 +47,10 @@ function makeJudoka(color,x,face){
   const elbow=joints[side+'Elbow']=pivot(shoulder,0,-.43,0);
   ellipsoid(elbow,gi,[.125,.135,.13],0,-.055,0);
   tapered(elbow,gi,.12,.10,.33,-.22);
-  ellipsoid(elbow,skin,[.085,.14,.067],0,-.47,.015);
+  // La mano es hija de la muñeca y gira independientemente del antebrazo.
+  const wrist=joints[side+'Wrist']=pivot(elbow,0,-.43,.015);
+  ellipsoid(wrist,skin,[.084,.13,.067],0,-.095,0);
+  ellipsoid(wrist,skin,[.045,.068,.047],s*.065,-.065,.02);
   // Cadera y piernas separadas, con rodillas móviles.
   const hip=joints[side+'Hip']=pivot(root,s*.18,1.12,0);
   ellipsoid(hip,gi,[.18,.17,.19],0,-.10,0);
@@ -97,7 +100,7 @@ function solveHand(id,hand,target){
   scene.updateMatrixWorld(true);
   gripDestination(id,hand,target,ikTarget);
   shoulder.getWorldPosition(ikPivot);
-  elbow.localToWorld(ikHand.set(0,-.47,.015));
+  p.joints[hand+'Wrist'].localToWorld(ikHand.set(0,-.095,0));
   if(ikHand.distanceTo(ikTarget)<.035)break;
   ikA.copy(ikHand).sub(ikPivot).normalize();
   ikB.copy(ikTarget).sub(ikPivot).normalize();
@@ -121,7 +124,7 @@ $('classicGrip').onclick=()=>{
    p.joints[side+'Hip'].rotation.set(0,0,0);
    p.joints[side+'Knee'].rotation.set(0,0,0);
    p.joints[side+'Shoulder'].rotation.set(0,0,0);
-   p.joints[side+'Elbow'].rotation.set(0,0,0);
+   p.joints[side+'Elbow'].rotation.set(0,0,0);\n   p.joints[side+'Wrist'].rotation.set(0,0,0);
   }
  }
  grips.tori.right='lapel';grips.tori.left='sleeve';
@@ -129,7 +132,7 @@ $('classicGrip').onclick=()=>{
  // Preparar los cuatro brazos para un agarre bilateral.
  for(const id of ['tori','uke'])for(const side of ['left','right']){
   people[id].joints[side+'Shoulder'].rotation.set(.38,0,side==='left'?.12:-.12);
-  people[id].joints[side+'Elbow'].rotation.set(-.85,0,0);
+  people[id].joints[side+'Elbow'].rotation.set(-.85,0,0);\n  people[id].joints[side+'Wrist'].rotation.set(.12,0,side==='left'?.12:-.12);
  }
  for(let pass=0;pass<4;pass++){
   for(const id of ['tori','uke']){
@@ -162,7 +165,7 @@ function updateGrips(){
   visual.line.visible=visual.dot.visible=!!target;
   if(!target)continue;
   const rival=id==='tori'?'uke':'tori';
-  people[id].joints[hand+'Elbow'].localToWorld(gripFrom.set(0,-.47,.015));
+  people[id].joints[hand+'Wrist'].localToWorld(gripFrom.set(0,-.095,0));
   gripDestination(id,hand,target,gripTo);
   const positions=visual.line.geometry.attributes.position;
   positions.setXYZ(0,gripFrom.x,gripFrom.y,gripFrom.z);
