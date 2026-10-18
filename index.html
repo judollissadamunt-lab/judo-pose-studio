@@ -40,7 +40,7 @@ function makeJudoka(color,x,face){
  ellipsoid(head,skin,[.06,.035,.055],0,.17,.165);
  for(const side of [-1,1]){ellipsoid(head,skin,[.033,.065,.028],side*.174,.18,0);ellipsoid(head,mat(0x392a28),[.014,.012,.008],side*.068,.22,.155);}
  if(color===0xffffff){ellipsoid(head,hair,[.105,.13,.10],0,.24,-.15);ellipsoid(head,hair,[.10,.20,.10],0,.10,-.25);}
- for(const [side,s] of [['left',-1],['right',1]]){
+ for(const [side,s] of [['left',1],['right',-1]]){
   const shoulder=joints[side+'Shoulder']=pivot(torso,s*.34,.68,0);
   ellipsoid(shoulder,gi,[.15,.16,.17],s*.02,-.06,0);
   tapered(shoulder,gi,.135,.12,.38,-.23);
@@ -48,7 +48,7 @@ function makeJudoka(color,x,face){
   ellipsoid(elbow,gi,[.125,.135,.13],0,-.055,0);
   tapered(elbow,gi,.12,.10,.33,-.22);
   // La mano es hija de la muñeca y gira independientemente del antebrazo.
-  const wrist=joints[side+'Wrist']=pivot(elbow,0,-.43,.015);
+  const wrist=joints[side+'Wrist']=pivot(elbow,0,-.43,0);
   ellipsoid(wrist,skin,[.084,.13,.067],0,-.095,0);
   ellipsoid(wrist,skin,[.045,.068,.047],s*.065,-.065,.02);
   // Cadera y piernas separadas, con rodillas móviles.
@@ -78,48 +78,62 @@ for(const [personId,person] of Object.entries(people)){
 // Kumi-kata: enlaces visuales que siguen manos y puntos de agarre en el judogi.
 const grips={tori:{left:null,right:null},uke:{left:null,right:null}};
 $('showMarkers').onchange=()=>{for(const marker of markers)marker.visible=$('showMarkers').checked;};
-// Cinemática inversa simple: acerca las manos a la manga y solapa reales.
-const ikHand=new THREE.Vector3(),ikPivot=new THREE.Vector3(),ikTarget=new THREE.Vector3();
-const ikA=new THREE.Vector3(),ikB=new THREE.Vector3(),ikAxis=new THREE.Vector3();
-const ikQuat=new THREE.Quaternion(),ikParentQuat=new THREE.Quaternion();
+// +Z es el frente: la derecha anatómica está en -X, la izquierda en +X.
 function gripDestination(id,hand,target,out){
  const rival=id==='tori'?'uke':'tori',p=people[rival];
  const rivalSide=hand==='right'?'left':'right';
- if(target==='lapel'){
-  const x=rivalSide==='right'?.13:-.13;
-  return p.joints.torso.localToWorld(out.set(x,.64,.22));
- }
- return p.joints[rivalSide+'Elbow'].localToWorld(out.set(0,-.34,.12));
+ const sign=rivalSide==='left'?1:-1;
+ if(target==='lapel')return p.joints.torso.localToWorld(out.set(sign*.15,.70,.28));
+ // Centro de la palma sobre la manga exterior: incluye el espesor de la mano.
+ const elbow=p.joints[rivalSide+'Elbow'];
+ const axis=new THREE.Vector3(0,-1,0).transformDirection(elbow.matrixWorld);
+ const exterior=new THREE.Vector3(sign,0,0).transformDirection(p.joints.torso.matrixWorld);
+ // Elegir la superficie exterior horizontal, independiente del giro axial de la manga.
+ const normal=new THREE.Vector3().crossVectors(axis,new THREE.Vector3(0,1,0));
+ if(normal.lengthSq()<1e-6)normal.copy(exterior).addScaledVector(axis,-exterior.dot(axis));
+ normal.normalize();if(normal.dot(exterior)<0)normal.negate();
+ return elbow.localToWorld(out.set(0,-.16,0)).addScaledVector(normal,.19);
 }
 function solveHand(id,hand,target){
  const p=people[id],shoulder=p.joints[hand+'Shoulder'],elbow=p.joints[hand+'Elbow'];
- // El codo es una bisagra: no puede girar libremente sobre tres ejes.
- // Mantener una flexión visible evita los brazos retorcidos de la V4.8.
- elbow.rotation.set(-1.08,0,0);
- for(let iteration=0;iteration<40;iteration++){
-  scene.updateMatrixWorld(true);
-  gripDestination(id,hand,target,ikTarget);
-  shoulder.getWorldPosition(ikPivot);
-  p.joints[hand+'Wrist'].localToWorld(ikHand.set(0,-.095,0));
-  if(ikHand.distanceTo(ikTarget)<.035)break;
-  ikA.copy(ikHand).sub(ikPivot).normalize();
-  ikB.copy(ikTarget).sub(ikPivot).normalize();
-  const angle=Math.acos(THREE.MathUtils.clamp(ikA.dot(ikB),-1,1));
-  ikAxis.crossVectors(ikA,ikB);
-  if(angle<.0001||ikAxis.lengthSq()<.0000001)break;
-  ikAxis.normalize();
-  shoulder.parent.getWorldQuaternion(ikParentQuat);
-  ikAxis.applyQuaternion(ikParentQuat.invert()).normalize();
-  ikQuat.setFromAxisAngle(ikAxis,Math.min(angle,.16));
-  shoulder.quaternion.premultiply(ikQuat).normalize();
- }
+ const wrist=p.joints[hand+'Wrist'],sign=hand==='left'?1:-1;
+ scene.updateMatrixWorld(true);
+ const goal=gripDestination(id,hand,target,new THREE.Vector3());
+ shoulder.parent.worldToLocal(goal);
+ const delta=goal.sub(shoulder.position),distance=delta.length();
+ // Longitudes hasta el centro de la palma; codo de bisagra entre 15 y 145 grados.
+ // Flexión suave y giro axial distinto por agarre, sin desviar lateralmente la muñeca.
+ const wristFlex=rad(-12),wristTwist=rad(sign*(target==='lapel'?45:25));
+ const palmOffset=new THREE.Vector3(0,-.095,0).applyAxisAngle(new THREE.Vector3(1,0,0),wristFlex);
+ const lowerRest=palmOffset.clone().add(new THREE.Vector3(0,-.43,0));
+ const upper=.43,lower=lowerRest.length();
+ const restAngle=Math.atan2(-lowerRest.z,-lowerRest.y);
+ const minBend=rad(15),maxBend=rad(145);
+ const reach=bend=>Math.sqrt(upper*upper+lower*lower+2*upper*lower*Math.cos(bend));
+ const d=THREE.MathUtils.clamp(distance,reach(maxBend),reach(minBend));
+ const direction=delta.normalize();
+ // Solapa: codo bajo; manga: codo más exterior para separar ambos corredores.
+ const pole=new THREE.Vector3(sign*(target==='lapel'?1.25:1),target==='lapel'?-1:-1.5,.25);
+ pole.addScaledVector(direction,-pole.dot(direction)).normalize();
+ const along=(upper*upper-lower*lower+d*d)/(2*d);
+ const height=Math.sqrt(Math.max(0,upper*upper-along*along));
+ const upperDir=direction.clone().multiplyScalar(along).addScaledVector(pole,height).divideScalar(upper);
+ const lowerDir=direction.clone().multiplyScalar(d).addScaledVector(upperDir,-upper).divideScalar(lower);
+ const bend=Math.acos(THREE.MathUtils.clamp(upperDir.dot(lowerDir),-1,1));
+ // Orientar +Z hacia la flexión permite que sólo rote el eje X del codo.
+ const z=lowerDir.clone().addScaledVector(upperDir,-Math.cos(bend)).normalize();
+ const y=upperDir.clone().negate(),x=new THREE.Vector3().crossVectors(y,z).normalize();
+ shoulder.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
+ elbow.rotation.set(-bend-restAngle,0,0);
+ wrist.rotation.set(wristFlex,wristTwist,0);
 }
 $('classicGrip').onclick=()=>{
  // Reinicia una postura estable, sin piernas elevadas ni brazos colgando.
  const t=people.tori.root,u=people.uke.root;
- t.position.set(-.57,0,0);u.position.set(.57,0,0);
+ t.position.set(-.54,0,-.10);u.position.set(.54,0,.10);
  t.rotation.y=rad(90);u.rotation.y=rad(-90);
  for(const p of Object.values(people)){
+  p.joints.torso.rotation.set(0,0,0);p.joints.head.rotation.set(0,0,0);
   for(const side of ['left','right']){
    p.joints[side+'Hip'].rotation.set(0,0,0);
    p.joints[side+'Knee'].rotation.set(0,0,0);
@@ -136,7 +150,7 @@ $('classicGrip').onclick=()=>{
   people[id].joints[side+'Elbow'].rotation.set(-.85,0,0);
   people[id].joints[side+'Wrist'].rotation.set(.12,0,side==='left'?.12:-.12);
  }
- for(let pass=0;pass<4;pass++){
+ for(let pass=0;pass<24;pass++){
   for(const id of ['tori','uke']){
    solveHand(id,'right','lapel');
    solveHand(id,'left','sleeve');
@@ -239,7 +253,7 @@ renderer.domElement.addEventListener('pointermove',event=>{
  const dx=event.clientX-dragJoint.x,dy=event.clientY-dragJoint.y;
  const limit=(v)=>Math.max(-Math.PI*.85,Math.min(Math.PI*.85,v));
  if(event.shiftKey){j.rotation.y=limit(dragJoint.rotY+dx*.008);}else{j.rotation.x=limit(dragJoint.rotX+dy*.008);j.rotation.z=limit(dragJoint.rotZ+dx*.008);}
- sync();event.preventDefault();
+ limitJoint(dragJoint.key,j);sync();event.preventDefault();
 });
 function finishDrag(){if(dragJoint){dragJoint=null;controls.enabled=true;}}
 renderer.domElement.addEventListener('pointerup',finishDrag);
@@ -247,12 +261,25 @@ renderer.domElement.addEventListener('pointercancel',finishDrag);
 window.addEventListener('blur',finishDrag);
 let who='tori',selectedStep=-1,steps=[];const jointKeys=Object.keys(people.tori.joints);const msg=s=>{$('message').textContent=s;};
 function updateButtons(){$('toriBtn').classList.toggle('active',who==='tori');$('ukeBtn').classList.toggle('active',who==='uke');}
-function sync(){const p=people[who],j=p.joints[$('joint').value];for(const [axis,id,v] of [['x','rotX','xVal'],['z','rotZ','zVal'],['y','rotY','yVal']]){$(id).value=deg(j.rotation[axis]);$(v).textContent=$(id).value+'°';}$('posX').value=p.root.position.x;$('posZ').value=p.root.position.z;$('facing').value=deg(p.root.rotation.y);updateButtons();}
+// Límites en grados en los ejes locales; codos y rodillas son bisagras.
+function jointLimits(key){
+ if(key.endsWith('Elbow'))return {x:[-145,0],y:[0,0],z:[0,0]};
+ if(key.endsWith('Knee'))return {x:[0,150],y:[0,0],z:[0,0]};
+ if(key.endsWith('Wrist'))return {x:[-70,70],y:[-80,80],z:[-25,25]};
+ return {x:[-150,150],y:[-180,180],z:[-150,150]};
+}
+function limitJoint(key,joint){
+ const limits=jointLimits(key);
+ // El hombro se orienta con cuaterniones en IK; no recortar sus ángulos Euler.
+ if(!key.endsWith('Elbow')&&!key.endsWith('Knee')&&!key.endsWith('Wrist'))return;
+ for(const axis of ['x','y','z'])joint.rotation[axis]=THREE.MathUtils.clamp(joint.rotation[axis],rad(limits[axis][0]),rad(limits[axis][1]));
+}
+function sync(){const p=people[who],j=p.joints[$('joint').value];for(const [axis,id,v] of [['x','rotX','xVal'],['z','rotZ','zVal'],['y','rotY','yVal']]){const bounds=jointLimits($('joint').value)[axis];$(id).min=bounds[0];$(id).max=bounds[1];$(id).disabled=bounds[0]===bounds[1];$(id).value=deg(j.rotation[axis]);$(v).textContent=$(id).value+'°';}$('posX').value=p.root.position.x;$('posZ').value=p.root.position.z;$('facing').value=deg(p.root.rotation.y);updateButtons();}
 for(const id of ['toriBtn','ukeBtn'])$(id).onclick=()=>{who=id==='toriBtn'?'tori':'uke';sync();};$('joint').onchange=sync;
-for(const [id,axis,val] of [['rotX','x','xVal'],['rotY','y','yVal'],['rotZ','z','zVal']])$(id).oninput=()=>{people[who].joints[$('joint').value].rotation[axis]=rad(+$(id).value);$(val).textContent=$(id).value+'°';};
+for(const [id,axis,val] of [['rotX','x','xVal'],['rotY','y','yVal'],['rotZ','z','zVal']])$(id).oninput=()=>{people[who].joints[$('joint').value].rotation[axis]=rad(+$(id).value);limitJoint($('joint').value,people[who].joints[$('joint').value]);sync();};
 for(const [id,prop] of [['posX','x'],['posZ','z']])$(id).oninput=()=>{people[who].root.position[prop]=+$(id).value;};$('facing').oninput=()=>{people[who].root.rotation.y=rad(+$('facing').value);};
 function pose(p){return {position:p.root.position.toArray(),rotation:p.root.rotation.y,joints:Object.fromEntries(jointKeys.map(k=>[k,[p.joints[k].rotation.x,p.joints[k].rotation.y,p.joints[k].rotation.z]]))};}
-function apply(p,data){if(!data)return;p.root.position.fromArray(data.position);p.root.rotation.y=data.rotation;for(const k of jointKeys)if(data.joints?.[k])p.joints[k].rotation.set(...data.joints[k]);}
+function apply(p,data){if(!data)return;p.root.position.fromArray(data.position);p.root.rotation.y=data.rotation;for(const k of jointKeys)if(data.joints?.[k]){p.joints[k].rotation.set(...data.joints[k]);limitJoint(k,p.joints[k]);}}
 function capture(){return {tori:pose(people.tori),uke:pose(people.uke),grips:JSON.parse(JSON.stringify(grips))};}function restore(s){apply(people.tori,s.tori);apply(people.uke,s.uke);if(s.grips){for(const id of ['tori','uke'])for(const hand of ['left','right'])grips[id][hand]=s.grips[id]?.[hand]||null;}else{for(const id of ['tori','uke'])for(const hand of ['left','right'])grips[id][hand]=null;}sync();gripInfo();}
 $('resetPose').onclick=()=>{for(const k of jointKeys)people[who].joints[k].rotation.set(0,0,0);sync();msg('Postura restablecida.');};$('resetAll').onclick=()=>{for(const p of Object.values(people))for(const k of jointKeys)p.joints[k].rotation.set(0,0,0);people.tori.root.position.set(-1.1,0,0);people.uke.root.position.set(1.1,0,0);people.tori.root.rotation.y=rad(90);people.uke.root.rotation.y=rad(-90);sync();msg('Escena reiniciada.');};
 function showSteps(){$('steps').replaceChildren();steps.forEach((s,i)=>{const b=document.createElement('button');b.textContent=`${i+1}. ${s.name}`;b.classList.toggle('active',i===selectedStep);b.onclick=()=>loadStep(i);$('steps').appendChild(b);});}
