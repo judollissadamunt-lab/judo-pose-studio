@@ -83,9 +83,16 @@ function gripDestination(id,hand,target,out){
  const rival=id==='tori'?'uke':'tori',p=people[rival];
  const rivalSide=hand==='right'?'left':'right';
  const sign=rivalSide==='left'?1:-1;
- if(target==='lapel')return p.joints.torso.localToWorld(out.set(sign*.13,.64,.235));
- // Manga exterior, cerca del codo, no la muñeca rival.
- return p.joints[rivalSide+'Elbow'].localToWorld(out.set(sign*.115,-.10,.025));
+ if(target==='lapel')return p.joints.torso.localToWorld(out.set(sign*.15,.70,.28));
+ // Centro de la palma sobre la manga exterior: incluye el espesor de la mano.
+ const elbow=p.joints[rivalSide+'Elbow'];
+ const axis=new THREE.Vector3(0,-1,0).transformDirection(elbow.matrixWorld);
+ const exterior=new THREE.Vector3(sign,0,0).transformDirection(p.joints.torso.matrixWorld);
+ // Elegir la superficie exterior horizontal, independiente del giro axial de la manga.
+ const normal=new THREE.Vector3().crossVectors(axis,new THREE.Vector3(0,1,0));
+ if(normal.lengthSq()<1e-6)normal.copy(exterior).addScaledVector(axis,-exterior.dot(axis));
+ normal.normalize();if(normal.dot(exterior)<0)normal.negate();
+ return elbow.localToWorld(out.set(0,-.16,0)).addScaledVector(normal,.19);
 }
 function solveHand(id,hand,target){
  const p=people[id],shoulder=p.joints[hand+'Shoulder'],elbow=p.joints[hand+'Elbow'];
@@ -95,13 +102,18 @@ function solveHand(id,hand,target){
  shoulder.parent.worldToLocal(goal);
  const delta=goal.sub(shoulder.position),distance=delta.length();
  // Longitudes hasta el centro de la palma; codo de bisagra entre 15 y 145 grados.
- const upper=.43,lower=.43+.095;
+ // Flexión suave y giro axial distinto por agarre, sin desviar lateralmente la muñeca.
+ const wristFlex=rad(-12),wristTwist=rad(sign*(target==='lapel'?45:25));
+ const palmOffset=new THREE.Vector3(0,-.095,0).applyAxisAngle(new THREE.Vector3(1,0,0),wristFlex);
+ const lowerRest=palmOffset.clone().add(new THREE.Vector3(0,-.43,0));
+ const upper=.43,lower=lowerRest.length();
+ const restAngle=Math.atan2(-lowerRest.z,-lowerRest.y);
  const minBend=rad(15),maxBend=rad(145);
  const reach=bend=>Math.sqrt(upper*upper+lower*lower+2*upper*lower*Math.cos(bend));
  const d=THREE.MathUtils.clamp(distance,reach(maxBend),reach(minBend));
  const direction=delta.normalize();
- // Polo anatómico: codo bajo y hacia el exterior de su propio judoka.
- const pole=new THREE.Vector3(sign*.8,-1,.15);
+ // Solapa: codo bajo; manga: codo más exterior para separar ambos corredores.
+ const pole=new THREE.Vector3(sign*(target==='lapel'?1.25:1),target==='lapel'?-1:-1.5,.25);
  pole.addScaledVector(direction,-pole.dot(direction)).normalize();
  const along=(upper*upper-lower*lower+d*d)/(2*d);
  const height=Math.sqrt(Math.max(0,upper*upper-along*along));
@@ -112,13 +124,13 @@ function solveHand(id,hand,target){
  const z=lowerDir.clone().addScaledVector(upperDir,-Math.cos(bend)).normalize();
  const y=upperDir.clone().negate(),x=new THREE.Vector3().crossVectors(y,z).normalize();
  shoulder.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x,y,z));
- elbow.rotation.set(-bend,0,0);
- wrist.rotation.set(0,0,0);
+ elbow.rotation.set(-bend-restAngle,0,0);
+ wrist.rotation.set(wristFlex,wristTwist,0);
 }
 $('classicGrip').onclick=()=>{
  // Reinicia una postura estable, sin piernas elevadas ni brazos colgando.
  const t=people.tori.root,u=people.uke.root;
- t.position.set(-.50,0,0);u.position.set(.50,0,0);
+ t.position.set(-.54,0,-.10);u.position.set(.54,0,.10);
  t.rotation.y=rad(90);u.rotation.y=rad(-90);
  for(const p of Object.values(people)){
   p.joints.torso.rotation.set(0,0,0);p.joints.head.rotation.set(0,0,0);
