@@ -1,6 +1,6 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Judo Pose Studio · Prototipo</title><style>
 :root{font-family:Inter,system-ui,Arial,sans-serif;color:#e9edf6;background:#101827}*{box-sizing:border-box}body{margin:0}header{padding:14px 20px;background:#18243a;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #34425b}h1{font-size:19px;margin:0}header small{color:#b7c6dc}.layout{display:grid;grid-template-columns:315px 1fr;height:calc(100vh - 65px)}aside{overflow:auto;padding:17px;background:#18243a;border-right:1px solid #34425b}h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:#aec4e7;margin:19px 0 9px}label{display:block;font-size:12px;color:#c2cde0;margin:9px 0 4px}select,input,button{font:inherit}select,input[type=number],input[type=text]{width:100%;background:#101827;color:white;border:1px solid #43536c;border-radius:7px;padding:8px}input[type=range]{width:100%}.inline{display:flex;gap:7px}.inline>*{flex:1;min-width:0}button{border:1px solid #50617d;background:#293a58;color:#fff;border-radius:7px;padding:9px 10px;cursor:pointer}button:hover{background:#38527d}button.primary{background:#c73343;border-color:#c73343}button.active{outline:2px solid #91b8ff}.hint{font-size:12px;line-height:1.5;color:#aebcd1}main{position:relative;min-width:0}canvas{display:block;width:100%;height:100%}.floating{position:absolute;left:15px;bottom:15px;background:#18243add;border:1px solid #40516b;padding:10px 13px;border-radius:9px;font-size:12px;max-width:400px}.status{color:#a6d7ad}.num{display:inline-block;min-width:48px;text-align:right;color:#fff}#steps{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0}#steps button{padding:7px 10px}.badge{color:#f0bdc5} @media(max-width:780px){.layout{grid-template-columns:1fr;height:auto}aside{order:2;max-height:none}main{height:52vh;min-height:330px}header{gap:12px;align-items:start;flex-direction:column}}
-</style><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script></head><body><header><div><h1>🥋 JUDO POSE STUDIO</h1><small>Editor experimental de Tori y Uke · independiente de Base44</small></div><small>Versión 4.8 · Kumi-kata bilateral</small></header><div class="layout"><aside>
+</style><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script></head><body><header><div><h1>🥋 JUDO POSE STUDIO</h1><small>Editor experimental de Tori y Uke · independiente de Base44</small></div><small>Versión 4.9 · codos estables</small></header><div class="layout"><aside>
 <h2>Judoka</h2><div class="inline"><button id="toriBtn" class="active">Tori · Blanco</button><button id="ukeBtn">Uke · Azul</button></div>
 <h2>Articulación</h2><p class="hint">Arrastra el cuerpo de un judoka para desplazarlo por el tatami. Haz clic en un <b>punto naranja</b> del judoka y arrastra horizontalmente o verticalmente para girar esa articulación. Mantén <b>Mayús</b> para girar en el eje horizontal.</p><select id="joint"><option value="head">Cabeza / cuello</option><option value="leftShoulder">Hombro izquierdo</option><option value="leftElbow">Codo izquierdo</option><option value="rightShoulder">Hombro derecho</option><option value="rightElbow">Codo derecho</option><option value="leftHip">Cadera izquierda</option><option value="leftKnee">Rodilla izquierda</option><option value="rightHip">Cadera derecha</option><option value="rightKnee">Rodilla derecha</option><option value="torso">Tronco</option></select>
 <label>Rotación adelante / atrás <span class="num" id="xVal">0°</span></label><input type="range" id="rotX" min="-150" max="150" value="0"><label>Rotación lateral <span class="num" id="zVal">0°</span></label><input type="range" id="rotZ" min="-150" max="150" value="0"><label>Giro horizontal <span class="num" id="yVal">0°</span></label><input type="range" id="rotY" min="-180" max="180" value="0">
@@ -90,27 +90,25 @@ function gripDestination(id,hand,target,out){
 }
 function solveHand(id,hand,target){
  const p=people[id],shoulder=p.joints[hand+'Shoulder'],elbow=p.joints[hand+'Elbow'];
- for(let iteration=0;iteration<36;iteration++){
+ // El codo es una bisagra: no puede girar libremente sobre tres ejes.
+ // Mantener una flexión visible evita los brazos retorcidos de la V4.8.
+ elbow.rotation.set(-1.08,0,0);
+ for(let iteration=0;iteration<40;iteration++){
   scene.updateMatrixWorld(true);
   gripDestination(id,hand,target,ikTarget);
+  shoulder.getWorldPosition(ikPivot);
   elbow.localToWorld(ikHand.set(0,-.47,.015));
-  if(ikHand.distanceTo(ikTarget)<.025)break;
-  for(const joint of [elbow,shoulder]){
-   scene.updateMatrixWorld(true);
-   joint.getWorldPosition(ikPivot);
-   elbow.localToWorld(ikHand.set(0,-.47,.015));
-   ikA.copy(ikHand).sub(ikPivot).normalize();
-   ikB.copy(ikTarget).sub(ikPivot).normalize();
-   const dot=THREE.MathUtils.clamp(ikA.dot(ikB),-1,1);
-   const angle=Math.acos(dot);
-   ikAxis.crossVectors(ikA,ikB);
-   if(angle<.0001||ikAxis.lengthSq()<.0000001)continue;
-   ikAxis.normalize();
-   joint.parent.getWorldQuaternion(ikParentQuat);
-   ikAxis.applyQuaternion(ikParentQuat.invert()).normalize();
-   ikQuat.setFromAxisAngle(ikAxis,Math.min(angle,.28));
-   joint.quaternion.premultiply(ikQuat).normalize();
-  }
+  if(ikHand.distanceTo(ikTarget)<.035)break;
+  ikA.copy(ikHand).sub(ikPivot).normalize();
+  ikB.copy(ikTarget).sub(ikPivot).normalize();
+  const angle=Math.acos(THREE.MathUtils.clamp(ikA.dot(ikB),-1,1));
+  ikAxis.crossVectors(ikA,ikB);
+  if(angle<.0001||ikAxis.lengthSq()<.0000001)break;
+  ikAxis.normalize();
+  shoulder.parent.getWorldQuaternion(ikParentQuat);
+  ikAxis.applyQuaternion(ikParentQuat.invert()).normalize();
+  ikQuat.setFromAxisAngle(ikAxis,Math.min(angle,.16));
+  shoulder.quaternion.premultiply(ikQuat).normalize();
  }
 }
 $('classicGrip').onclick=()=>{
