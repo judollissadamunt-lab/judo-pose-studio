@@ -1,15 +1,15 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Judo Pose Studio · Prototipo</title><style>
 :root{font-family:Inter,system-ui,Arial,sans-serif;color:#e9edf6;background:#101827}*{box-sizing:border-box}body{margin:0}header{padding:14px 20px;background:#18243a;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #34425b}h1{font-size:19px;margin:0}header small{color:#b7c6dc}.layout{display:grid;grid-template-columns:315px 1fr;height:calc(100vh - 65px)}aside{overflow:auto;padding:17px;background:#18243a;border-right:1px solid #34425b}h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:#aec4e7;margin:19px 0 9px}label{display:block;font-size:12px;color:#c2cde0;margin:9px 0 4px}select,input,button{font:inherit}select,input[type=number],input[type=text]{width:100%;background:#101827;color:white;border:1px solid #43536c;border-radius:7px;padding:8px}input[type=range]{width:100%}.inline{display:flex;gap:7px}.inline>*{flex:1;min-width:0}button{border:1px solid #50617d;background:#293a58;color:#fff;border-radius:7px;padding:9px 10px;cursor:pointer}button:hover{background:#38527d}button.primary{background:#c73343;border-color:#c73343}button.active{outline:2px solid #91b8ff}.hint{font-size:12px;line-height:1.5;color:#aebcd1}main{position:relative;min-width:0}canvas{display:block;width:100%;height:100%}.floating{position:absolute;left:15px;bottom:15px;background:#18243add;border:1px solid #40516b;padding:10px 13px;border-radius:9px;font-size:12px;max-width:400px}.status{color:#a6d7ad}.num{display:inline-block;min-width:48px;text-align:right;color:#fff}#steps{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0}#steps button{padding:7px 10px}.badge{color:#f0bdc5} @media(max-width:780px){.layout{grid-template-columns:1fr;height:auto}aside{order:2;max-height:none}main{height:52vh;min-height:330px}header{gap:12px;align-items:start;flex-direction:column}}
-</style><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script></head><body><header><div><h1>🥋 JUDO POSE STUDIO</h1><small>Editor experimental de Tori y Uke · independiente de Base44</small></div><small>Prototipo 4 · articulaciones con ratón</small></header><div class="layout"><aside>
+</style><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script></head><body><header><div><h1>🥋 JUDO POSE STUDIO</h1><small>Editor experimental de Tori y Uke · independiente de Base44</small></div><small>Versión 4.1 · articulaciones y desplazamiento con ratón</small></header><div class="layout"><aside>
 <h2>Judoka</h2><div class="inline"><button id="toriBtn" class="active">Tori · Blanco</button><button id="ukeBtn">Uke · Azul</button></div>
-<h2>Articulación</h2><p class="hint">Haz clic en un <b>punto naranja</b> del judoka y arrastra horizontalmente o verticalmente para girar esa articulación. Mantén <b>Mayús</b> para girar en el eje horizontal.</p><select id="joint"><option value="head">Cabeza / cuello</option><option value="leftShoulder">Hombro izquierdo</option><option value="leftElbow">Codo izquierdo</option><option value="rightShoulder">Hombro derecho</option><option value="rightElbow">Codo derecho</option><option value="leftHip">Cadera izquierda</option><option value="leftKnee">Rodilla izquierda</option><option value="rightHip">Cadera derecha</option><option value="rightKnee">Rodilla derecha</option><option value="torso">Tronco</option></select>
+<h2>Articulación</h2><p class="hint">Arrastra el cuerpo de un judoka para desplazarlo por el tatami. Haz clic en un <b>punto naranja</b> del judoka y arrastra horizontalmente o verticalmente para girar esa articulación. Mantén <b>Mayús</b> para girar en el eje horizontal.</p><select id="joint"><option value="head">Cabeza / cuello</option><option value="leftShoulder">Hombro izquierdo</option><option value="leftElbow">Codo izquierdo</option><option value="rightShoulder">Hombro derecho</option><option value="rightElbow">Codo derecho</option><option value="leftHip">Cadera izquierda</option><option value="leftKnee">Rodilla izquierda</option><option value="rightHip">Cadera derecha</option><option value="rightKnee">Rodilla derecha</option><option value="torso">Tronco</option></select>
 <label>Rotación adelante / atrás <span class="num" id="xVal">0°</span></label><input type="range" id="rotX" min="-150" max="150" value="0"><label>Rotación lateral <span class="num" id="zVal">0°</span></label><input type="range" id="rotZ" min="-150" max="150" value="0"><label>Giro horizontal <span class="num" id="yVal">0°</span></label><input type="range" id="rotY" min="-180" max="180" value="0">
 <h2>Posición del judoka</h2><label>Izquierda / derecha (X)</label><input id="posX" type="range" min="-3" max="3" step="0.05"><label>Adelante / atrás (Z)</label><input id="posZ" type="range" min="-3" max="3" step="0.05"><label>Orientación del cuerpo</label><input id="facing" type="range" min="-180" max="180" step="5"><div class="inline" style="margin-top:10px"><button id="resetPose">Restablecer postura</button><button id="resetAll">Reiniciar escena</button></div>
 <h2>Secuencia de O-soto-gari</h2><p class="hint">Coloca ambos judokas, ajusta sus articulaciones y guarda cada fase. Puedes recuperar una fase y continuar editándola.</p><input type="text" id="stepName" placeholder="Ej. 1 · Agarre" value="1 · Posición inicial"><div class="inline" style="margin-top:8px"><button id="saveStep" class="primary">Guardar fase</button><button id="deleteStep">Borrar fase</button></div><div class="inline" style="margin-top:7px"><button id="newStep">＋ Nueva fase</button></div><div id="steps"></div><div class="inline"><button id="prevStep">◀ Anterior</button><button id="nextStep">Siguiente ▶</button></div>
 <h2>Reproducción de la técnica</h2><p class="hint">Guarda al menos dos fases. Pulsa Reproducir para ver cómo Tori y Uke pasan de una postura a otra.</p><div class="inline"><button id="playAnim" class="primary">▶ Reproducir</button><button id="stopAnim">■ Detener</button></div><label>Velocidad</label><select id="speedAnim"><option value="0.5">Lenta · 0,5×</option><option value="1" selected>Normal · 1×</option><option value="2">Rápida · 2×</option></select><label>Recorrido <span id="progressText">0%</span></label><input type="range" id="animProgress" min="0" max="1000" value="0"><p class="hint" id="animPhase">Sin animación</p>
 <h2>Guardar proyecto</h2><p class="hint">💾 Guardado automático local activado. El proyecto se recupera al abrir este archivo en el mismo navegador y ubicación. Exporta JSON como copia de seguridad.</p><button id="clearLocal">Borrar guardado local</button><div class="inline"><button id="exportJson">Descargar proyecto JSON</button><button id="importBtn">Importar JSON</button></div><input id="importFile" type="file" accept="application/json,.json" hidden><div class="inline" style="margin-top:8px"><button id="screenshot">Guardar imagen PNG</button><button id="viewReset">Centrar cámara</button></div>
 <p class="hint">Arrastra sobre la escena para girar la cámara y usa la rueda para acercar o alejar. Los personajes tienen proporciones anatómicas aproximadas; todavía no simula física, agarres ni proyecciones automáticas.</p><p id="message" class="status" aria-live="polite"></p>
-</aside><main><div id="scene"></div><div class="floating">Ratón: <b>arrastrar</b> para orbitar · <b>rueda</b> para zoom · <b>clic derecho + arrastrar</b> para desplazar cámara<br><span class="badge">Selecciona y arrastra los puntos naranjas para mover articulaciones. Arrastra el fondo para girar la cámara.</span></div></main></div>
+</aside><main><div id="scene"></div><div class="floating">Ratón: <b>arrastrar</b> para orbitar · <b>rueda</b> para zoom · <b>clic derecho + arrastrar</b> para desplazar cámara<br><span class="badge">Selecciona y arrastra los puntos naranjas para mover articulaciones. Arrastra el cuerpo para mover el judoka; arrastra el fondo para girar la cámara.</span></div></main></div>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -83,6 +83,44 @@ renderer.domElement.addEventListener('pointerdown',event=>{
  controls.enabled=false;renderer.domElement.setPointerCapture(event.pointerId);event.stopPropagation();
  msg('Articulación seleccionada: '+key+' · '+(who==='tori'?'Tori':'Uke'));
 },true);
+// Arrastrar directamente el cuerpo de Tori o Uke sobre el tatami.
+const dragPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+const dragPoint=new THREE.Vector3();
+let dragPerson=null;
+renderer.domElement.addEventListener('pointerdown',event=>{
+ if(event.button!==0||dragJoint)return;
+ pointerPosition(event);raycaster.setFromCamera(pointer,camera);
+ const hits=raycaster.intersectObjects([people.tori.root,people.uke.root],true);
+ const hit=hits.find(h=>!h.object.userData?.key);
+ if(!hit||!raycaster.ray.intersectPlane(dragPlane,dragPoint))return;
+ let node=hit.object;
+ while(node.parent&&node!==people.tori.root&&node!==people.uke.root)node=node.parent;
+ const id=node===people.tori.root?'tori':node===people.uke.root?'uke':null;
+ if(!id)return;
+ who=id;sync();
+ dragPerson={id,pointerId:event.pointerId,offsetX:people[id].root.position.x-dragPoint.x,offsetZ:people[id].root.position.z-dragPoint.z};
+ controls.enabled=false;renderer.domElement.setPointerCapture(event.pointerId);
+ event.preventDefault();event.stopImmediatePropagation();
+ msg('Moviendo '+(id==='tori'?'Tori':'Uke')+' sobre el tatami');
+},true);
+renderer.domElement.addEventListener('pointermove',event=>{
+ if(!dragPerson||event.pointerId!==dragPerson.pointerId)return;
+ pointerPosition(event);raycaster.setFromCamera(pointer,camera);
+ if(raycaster.ray.intersectPlane(dragPlane,dragPoint)){
+  const root=people[dragPerson.id].root;
+  root.position.x=Math.max(-3,Math.min(3,dragPoint.x+dragPerson.offsetX));
+  root.position.z=Math.max(-3,Math.min(3,dragPoint.z+dragPerson.offsetZ));
+  sync();
+ }
+ event.preventDefault();event.stopImmediatePropagation();
+},true);
+function finishPersonDrag(event){
+ if(!dragPerson||event?.pointerId!==undefined&&event.pointerId!==dragPerson.pointerId)return;
+ dragPerson=null;controls.enabled=true;
+}
+renderer.domElement.addEventListener('pointerup',finishPersonDrag,true);
+renderer.domElement.addEventListener('pointercancel',finishPersonDrag,true);
+window.addEventListener('blur',()=>finishPersonDrag());
 renderer.domElement.addEventListener('pointermove',event=>{
  if(!dragJoint)return;
  const j=people[dragJoint.personId].joints[dragJoint.key];
